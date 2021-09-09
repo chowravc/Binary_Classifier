@@ -17,100 +17,139 @@ import glob
 print('datasets.py: imported packages.')
 
 
-### Train dataset object
+
+### Class defining dataset object
 class TrainDataset(Dataset):
-	
-	## Constructor
+
+	## Initialize object
 	def __init__(self, dataPath):
-
-		# Get relevant frames
-		self.frames = pims.ImageSequence(dataPath + '/train_set/*.tiff')
-
-		# Get filepaths from frames
-		self.names = pd.Series(self.frames._filepaths)
-
-		# Get label filepaths from frame filepaths
-		self.names = self.names.str.replace('tiff', 'txt')
-
-		# Function to transform image/array to tensor
+		
+		# Load paths to data
+		self.data = glob.glob(dataPath + 'train_set/inData/*.txt')
+		
+		# Replace 'data' with 'labels' to get path to labels
+		self.labels = [dataPath.replace('inData', 'labels') for dataPath in self.data]
+		
+		# Transformation to tensor
 		self.to_tensor = transforms.ToTensor()
 
-	## Get length of object frames
+	## Get length of object
 	def __len__(self):
-
+		
 		# Return length
-		return len(self.frames)
+		return len(self.data)
 
-	## Get next timen from datset
+	## Function to pull next item from the dataset
 	def __getitem__(self, idx):
-
-		# If tensor is inputted, convert it to a list
+		
+		# If already a tensor, convert to list
 		if torch.is_tensor(idx):
-
-			# Index conversion to list
+			
+			# Convert the item to list
 			idx.tolist()
-
-		# Read label as a numpy array from txt file and convert it to a tensor
-		label = self.to_tensor(np.genfromtxt(self.names.iloc[idx])).to(dtype=torch.float32)
-
-		# Read frame as a pims image and convert to a tensor
-		tensor = self.to_tensor(self.frames[idx]/255).to(dtype=torch.float32)[0:3,:,:]
-
-		# Change tensor to grayscale and add extra dimension
-		tensor = ((tensor[0] + tensor[1] + tensor[2])/3).unsqueeze(0)
-
-		# Create list of image tensor and unet mask
+		
+		# Convert the data to a tensor
+		tensor = torch.from_numpy(np.loadtxt(self.data[idx]))
+		
+		# Add an extra dimension to the tensor
+		tensor = tensor.float().unsqueeze(0)
+		
+		# Get the label as a tensor
+		label = torch.from_numpy(np.loadtxt(self.labels[idx]))
+		
+		# Add an extra dimension to the label
+		label = label.float().unsqueeze(0)
+		
+		# Convert the item to a list of data and label
 		sample = [tensor, label]
-
-		# Return list
+		
+		# Return the item
 		return sample
 
-
-
-### Test dataset object
+	
+	
+### Class defining dataset object
 class TestDataset(Dataset):
-	
-	## Constructor
+
+	## Initialize object
 	def __init__(self, dataPath):
-
-		# Get relevant frames
-		self.frames = pims.ImageSequence(dataPath + '/test_set/*.tiff')
-
-		# Get filepaths from frames
-		self.names = pd.Series(self.frames._filepaths)
-
-		# Get label filepaths from frame filepaths
-		self.names = self.names.str.replace('tiff', 'txt')
-
-		# Function to transform image/array to tensor
+		
+		# Load paths to data
+		self.data = glob.glob(dataPath + '/test_set/inData/*.txt')
+		
+		# Replace 'data' with 'labels' to get path to labels
+		self.labels = [dataPath.replace('inData', 'labels') for dataPath in self.data]
+		
+		# Transformation to tensor
 		self.to_tensor = transforms.ToTensor()
 
-	## Get length of object frames
+	## Get length of object
 	def __len__(self):
-
+		
 		# Return length
-		return len(self.frames)
+		return len(self.data)
 
-	## Get next timen from datset
+	## Function to pull next item from the dataset
 	def __getitem__(self, idx):
-
-		# If tensor is inputted, convert it to a list
+		
+		# If already a tensor, convert to list
 		if torch.is_tensor(idx):
-
-			# Index conversion to list
+			
+			# Convert the item to list
 			idx.tolist()
-
-		# Read label as a numpy array from txt file and convert it to a tensor
-		label = self.to_tensor(np.genfromtxt(self.names.iloc[idx])).to(dtype=torch.float32)
-
-		# Read frame as a pims image and convert to a tensor
-		tensor = self.to_tensor(self.frames[idx]/255).to(dtype=torch.float32)[0:3,:,:]
-
-		# Change tensor to grayscale and add extra dimension
-		tensor = ((tensor[0] + tensor[1] + tensor[2])/3).unsqueeze(0)
-
-		# Create list of image tensor and unet mask
+		
+		# Convert the data to a tensor
+		tensor = torch.from_numpy(np.loadtxt(self.data[idx]))
+		
+		# Add an extra dimension to the tensor
+		tensor = tensor.float().unsqueeze(0)
+		
+		# Get the label as a tensor
+		label = torch.from_numpy(np.loadtxt(self.labels[idx]))
+		
+		# Add an extra dimension to the label
+		label = label.float().unsqueeze(0)
+		
+		# Convert the item to a list of data and label
 		sample = [tensor, label]
-
-		# Return list
+		
+		# Return the item
 		return sample
+
+
+
+### Main functioning of script
+if __name__ == '__main__':
+
+	#setup test train split
+
+	# Batch size
+	bs = 64
+
+	# Path to dataset
+	dataPath = 'data/defects/'
+
+	# Call datasets as object
+	train_dataset, test_dataset = TrainDataset(dataPath), TestDataset(dataPath)
+
+	# Define train dataset loader
+	train_loader = torch.utils.data.DataLoader(train_dataset, batch_size = bs, shuffle = True)
+
+	# Define test dataset loader
+	test_loader = torch.utils.data.DataLoader(test_dataset, batch_size = bs, shuffle = False)
+
+	# we then load this dataset into a dataloader-- this is what will feed the gpu. Gpu's are hungry
+	# so we want to feed them as much as possible. the dataloader will spit out a list that holds multiple
+	# images and labels, which can be processed in parallel in the gpu. Generally, you want the batch size to
+	# be a number big enough to use up all the gpu's memory, so no resource goes to waste.
+
+	# Load the next data and labels
+	data, labels = next(iter(train_loader))
+
+	# Display data size
+	# print(data)
+	print(data.shape)
+
+	# Display labels size
+	print(labels.shape)
+	# print(labels)

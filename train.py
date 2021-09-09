@@ -21,8 +21,21 @@ from training_loop import *
 
 print('model.py: imported packages.')
 
+
+
+### Get index with largest probability
+def maxProbability(tensor):
+
+	## Get indicess of largest probability
+	indices = tensor.argmax(dim=2).squeeze()
+
+	## Return the indices
+	return indices
+
+
+
 ### Main functioning of script
-if __name__ == '__main__':
+def main():
 
 	#### PART 1: Setting up train and test datasets
 	print('\nPART 1: Setting up train and test datasets')
@@ -31,7 +44,7 @@ if __name__ == '__main__':
 
 	## Decide batch size: This is the number of train image-labels that will be fed at once.
 	## Choose the largest one you can without running out of RAM.
-	bs = 32
+	bs = 64
 
 	## Path to dataset
 	dataPath = 'data/defects/'
@@ -66,25 +79,26 @@ if __name__ == '__main__':
 	print('\nPART 2: Setting up model to train')
 
 	## Instantiate model
-	uModel = UNet_small()
+	model = BinaryClassifier(3, 2).float()
 
 	## Load next image-label batch
 	images, labels = next(iter(train_loader))
 
 	## Compute output from untrained model
-	output = uModel(images)
+	output = model(images)
 
 	## Check if the dimensions are correct
 	print('Output mask tensor size:', output.size())
 
-	## Create plot, plotting a single output
-	fig, ax = plt.subplots()
-	a = ax.imshow(output[0][0].detach().numpy())
-	plt.colorbar(a)
+	## Get sigmoid of output
+	output = torch.sigmoid(output)
+
+	## Get the output maxs
+	maxIndices = maxProbability(output)
 
 	print('Displaying test output for untrained model.')
 	## Display output
-	plt.show()
+	# print(maxIndices)
 
 	print('done.')
 
@@ -120,10 +134,10 @@ if __name__ == '__main__':
 	loss_fn = nn.BCEWithLogitsLoss()
 
 	## Choose the learning rate
-	lr = 1e-1
+	lr = 1e-6
 
 	## Mount model to device
-	model = uModel.to(device)
+	model = model.to(device).float()
 
 	## Instantiate optimizer
 	optimizer = optim.SGD(model.parameters(), lr=lr, weight_decay = .0005, momentum = .9)
@@ -135,11 +149,28 @@ if __name__ == '__main__':
 	os.mkdir(expPath + 'weights/')
 
 	## Start training loop
-	training_loop(20, optimizer, model, loss_fn, train_loader, device, expPath)
+	training_loop(20000, optimizer, model, loss_fn, train_loader, test_loader, device, expPath)
 	print('\nFinished training. Saving final model.')
 
 	## Path to final trained model last
 	PATH = expPath + 'weights/last.pth'
 
 	## Save the final trained model
-	torch.save(uModel.state_dict(), PATH)
+	torch.save(model.state_dict(), PATH)
+
+
+
+### Run if script is called directly
+if __name__ == '__main__':
+
+	## Call main function
+	main()
+
+	# tensor = torch.tensor([
+	# 	[[1, 0]],
+	# 	[[1, 0]],
+	# 	[[0, 55]],
+	# 	[[0, 1]]
+	# 	])
+	# print(tensor.shape)
+	# print(maxProbability(tensor))
