@@ -83,7 +83,7 @@ def training_loop(n_epochs, optimizer, model, loss_fn, train_loader, test_loader
 	for epoch in range(1, n_epochs + 1):  # <2>
 
 		# Open results txt file to store training progress
-		results = open(expPath + 'results.txt', 'w')
+		results = open(expPath + 'results.txt', 'a')
 
 		# Keep track of training loss
 		loss_train = 0.0
